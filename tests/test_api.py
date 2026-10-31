@@ -23,3 +23,22 @@ def test_csv_upload_query_and_export():
 def test_unsupported():
     response = client.post("/api/v1/files/upload", files={"file": ("malware.exe", b"fake")})
     assert response.status_code == 415
+
+
+def test_pdf_upload_extracts_text():
+    import pymupdf
+
+    with pymupdf.open() as document:
+        page = document.new_page()
+        page.insert_text((72, 72), "Hotel invoice example")
+        pdf_bytes = document.tobytes()
+
+    response = client.post(
+        "/api/v1/files/upload",
+        files={"file": ("hotel_bill.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+    file_id = response.json()["id"]
+    result = client.get(f"/api/v1/files/{file_id}/data")
+    assert result.status_code == 200
+    assert "Hotel invoice example" in result.json()["text"]
