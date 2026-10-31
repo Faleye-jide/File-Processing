@@ -1,14 +1,19 @@
 ---
-description: File Processing engineering conventions
+description: File Processing architecture and development practices
 alwaysApply: true
 ---
 # Project rules
 
-- Project name is File Processing.
-- Backend is FastAPI; frontend is currently a browser dashboard served by FastAPI.
-- Keep existing `/api/v1/files/*` endpoints compatible when extending functionality.
-- Write tests for API behavior changes and run `pytest -q`.
-- Do not commit SQLite databases, original uploaded files, tokens or `.env`.
-- Processing is currently synchronous, local-only and unauthenticated. Never present it as production secure.
-- Add typed document schemas and deterministic validation before implementing AI extraction and OCR.
-- Use short-lived feature branches and pull requests. Do not force-push to `main`.
+- Project name is **File Processing**.
+- Keep `app/main.py` thin: application assembly and lifecycle only.
+- Place HTTP route handlers under `app/api/routes/` and use `APIRouter`.
+- Place SQLAlchemy ORM models under `app/models/` and database configuration/sessions under `app/db/`.
+- Place Pydantic API contracts under `app/schemas/`.
+- Place business logic, file parsing, persistence and exports under `app/services/`.
+- Use dependency-injected SQLAlchemy sessions in route handlers, not module-global request sessions.
+- Persist both original uploaded bytes and parsed records/PDF text in the database for the MVP; plan object storage for production binaries.
+- Maintain compatibility with existing `/api/v1/files/*` endpoints.
+- Add tests covering file processing and database persistence. Run `python -m pytest -q`.
+- Never commit `storage/`, uploaded files, SQLite databases, `.env` or credentials.
+- Treat the current API as local-only, unauthenticated and not production secure.
+- Prefer focused PRs; do not merge or force-push to `main` without review.
