@@ -1,12 +1,43 @@
 # File Processing
 
-A local-first FastAPI web app for ingesting files and serving processed data through REST endpoints.
+An extensible FastAPI application for uploading CSV, Excel, JSON and text-based PDFs, persisting their contents in a database, and serving data via REST APIs. Includes a browser dashboard for uploads, previews and downloads.
 
-**Sprint 1:** upload CSV, XLSX, JSON and text-based PDFs, preview processed content, and export tabular records to CSV or JSON.
+## Architecture
 
-> **Security warning:** This is a local-development MVP with no authentication, malware scanning or encryption at rest. Do not deploy publicly or upload real invoices, private information, or credentials. OCR and AI-based field extraction are not yet implemented.
+```text
+Browser dashboard (frontend/index.html)
+        |
+        v
+FastAPI (app/main.py) — application wiring only
+        |
+        v
+API routes (app/api/routes/files.py)
+        |
+        +----> Processing service (app/services/file_processing.py)
+        |          CSV / Excel / JSON -> JSON records
+        |          PDF -> extracted text + page count
+        |
+        v
+Persistence service (app/services/file_service.py)
+        |
+        v
+SQLAlchemy ORM (app/models/file.py)
+        |
+        v
+SQLite (default) or PostgreSQL (DATABASE_URL)
+```
 
-## Local setup
+The database has three tables:
+
+- **`uploaded_files`**: upload metadata, SHA-256, size and original file bytes (`LargeBinary` / PostgreSQL `BYTEA`).
+- **`dataset_records`**: one JSON row per tabular input record, linked to its uploaded file.
+- **`document_contents`**: extracted text and page count for text-based PDFs.
+
+This means **the original upload AND the processed data live in the database**, not separate JSON files. Files can be queried, exported and downloaded after server restarts. A single transaction saves each upload and all its parsed records.
+
+> **MVP trade-off:** Keeping a copy of every original binary in the database is workable under the current 10 MB limit. For larger production files, move original bytes to object storage (Azure Blob / S3), keeping object keys, metadata, structured rows and extracted text in PostgreSQL. For large structured datasets, consider bulk loading to dedicated tables or Parquet.
+
+## Run locally
 
 Requires Python 3.11+.
 
@@ -17,46 +48,72 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1`.
+Windows PowerShell: `.venv\Scripts\Activate.ps1`
 
-- Dashboard: http://127.0.0.1:8000/
-- API docs: http://127.0.0.1:8000/docs
-- Health: http://127.0.0.1:8000/health
+- **Dashboard:** http://127.0.0.1:8000/
+- **Swagger docs:** http://127.0.0.1:8000/docs
+- **Health:** http://127.0.0.1:8000/health
+
+By default the database is `storage/file_processing.sqlite3` (automatically created). Data in `storage/` is ignored by Git.
+
+### PostgreSQL option
+
+Create a PostgreSQL database and set the connection string before running:
+
+```bash
+export DATABASE_URL='postgresql+psycopg://username:password@localhost:5432/file_processing'
+uvicorn app.main:app --reload
+```
+
+SQLAlchemy creates tables automatically for this MVP. For real deployments, add Alembic migrations and manage the database credentials securely. **Changing the connection string doesn't automatically copy data from SQLite to PostgreSQL.**
 
 ## API
 
-| Method | Route | Purpose |
-|---|---|---|
-| POST | `/api/v1/files/upload` | Upload up to 10 MB |
-| GET | `/api/v1/files` | List files |
-| GET | `/api/v1/files/{file_id}` | File metadata |
-| GET | `/api/v1/files/{file_id}/data` | Paginated records or PDF text |
-| GET | `/api/v1/files/{file_id}/download?format=json` | JSON export |
-| GET | `/api/v1/files/{file_id}/download?format=csv` | CSV export (tabular only) |
+| Method | Route | Description |
+| --- | --- | --- |
+| `POST` | `/api/v1/files/upload` | Upload a CSV, XLSX, JSON or PDF (max 10 MB) |
+| `GET` | `/api/v1/files?limit=100&offset=0` | List uploaded files with metadata |
+| `GET` | `/api/v1/files/{id}` | Get metadata without binary content |
+| `GET` | `/api/v1/files/{id}/data?limit=100&offset=0` | Query structured records, or PDF text |
+| `GET` | `/api/v1/files/{id}/download?format=json` | Export processed data to JSON |
+| `GET` | `/api/v1/files/{id}/download?format=csv` | Export tabular records to CSV |
+| `GET` | `/api/v1/files/{id}/original` | Download the original file from the database |
+
+Example:
 
 ```bash
 curl -F 'file=@orders.csv' http://127.0.0.1:8000/api/v1/files/upload
-pytest -q
+curl http://127.0.0.1:8000/api/v1/files
 ```
 
-## Cursor workflow
+## Upgrade from the old file-based app
 
-Clone the existing repository and open it in Cursor:
+The previous version stored metadata at `storage/metadata.sqlite3` and kept upload bytes and processed JSON files in `storage/`. **Those old files are left untouched**. To import them into the new schema:
 
 ```bash
-git clone https://github.com/Faleye-jide/File-Processing.git
-cd File-Processing
-git fetch origin
-git switch feat/initial-file-processing-app
+python -m scripts.migrate_legacy
 ```
 
-Review changes in the branch or the pull request before merging. The `.cursor/rules/project.mdc` file provides project-specific implementation rules.
+The importer preserves upload IDs where possible and skips IDs already imported. Back up `storage/` before migration. The new application uses a separate database at `storage/file_processing.sqlite3`, avoiding accidental overwrites of the old schema.
 
-## Roadmap
+## Tests
 
-1. Add invoice, receipt and hotel bill schemas, and deterministic field validation.
-2. Add OCR and AI-assisted extraction with human review.
-3. Move processing to a background queue and store documents in object storage.
-4. Implement authentication, file scanning, deployment and observability.
+```bash
+python -m pytest -q
+```
 
-Current limitations: synchronous uploads, local SQLite/filesystem storage, text PDFs only; no PDF-to-tabular CSV conversion.
+Tests create an isolated in-memory SQLite database, so test uploads never modify your application database. GitHub Actions runs these tests on PRs.
+
+## Important limitations
+
+- This is a **local development MVP**, not an authenticated production service. Never deploy it openly or upload real customer invoices, payment information, private information or secrets until authorization, encryption, scanning and retention controls are implemented.
+- PDF handling extracts **embedded text only**; scanned documents require future OCR and AI extraction.
+- Processing is synchronous; large workloads need a background queue.
+- `create_all()` initializes tables but does **not** handle future schema changes; use Alembic migrations before evolving a deployed database.
+- SQLite stores JSON as JSON-compatible values; PostgreSQL can provide richer JSON querying and indexing.
+
+## Next milestones
+
+1. Pydantic invoice, receipt and hotel bill schemas with deterministic field validation.
+2. OCR and AI-based extraction with manual review.
+3. Async processing (Redis/Celery), access controls, object storage and secure deployment.
