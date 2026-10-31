@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes.files import router as files_router
 from app.db.session import create_db_and_tables
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="File Processing API", version="0.2.0", lifespan=lifespan)
 app.include_router(files_router)
+app.mount("/static", StaticFiles(directory=Path(__file__).resolve().parent.parent / "frontend"), name="static")
 
 
 @app.get("/health", tags=["Health"])

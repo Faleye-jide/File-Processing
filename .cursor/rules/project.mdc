@@ -17,3 +17,6 @@ alwaysApply: true
 - Never commit `storage/`, uploaded files, SQLite databases, `.env` or credentials.
 - Treat the current API as local-only, unauthenticated and not production secure.
 - Prefer focused PRs; do not merge or force-push to `main` without review.
+
+- Keep frontend markup in `frontend/index.html`, browser logic in `frontend/js/app.js`, and styles in `frontend/css/styles.css`; avoid inline JS/CSS.
+- When changing frontend asset paths, update FastAPI static file serving and the corresponding API tests.
