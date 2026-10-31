@@ -1,0 +1,14 @@
+---
+description: File Processing engineering conventions
+alwaysApply: true
+---
+# Project rules
+
+- Project name is File Processing.
+- Backend is FastAPI; frontend is currently a browser dashboard served by FastAPI.
+- Keep existing `/api/v1/files/*` endpoints compatible when extending functionality.
+- Write tests for API behavior changes and run `pytest -q`.
+- Do not commit SQLite databases, original uploaded files, tokens or `.env`.
+- Processing is currently synchronous, local-only and unauthenticated. Never present it as production secure.
+- Add typed document schemas and deterministic validation before implementing AI extraction and OCR.
+- Use short-lived feature branches and pull requests. Do not force-push to `main`.
