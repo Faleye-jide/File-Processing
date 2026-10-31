@@ -93,3 +93,22 @@ def test_each_upload_is_persisted_separately(client):
     listed = client.get("/api/v1/files").json()
     assert len(listed) == 2
     assert listed[0]["id"] != listed[1]["id"]
+
+
+def test_frontend_assets_are_served_separately(client):
+    page = client.get("/")
+    assert page.status_code == 200
+    assert 'src="/static/js/app.js"' in page.text
+    assert 'href="/static/css/styles.css"' in page.text
+    assert "<script>" not in page.text
+    assert "<style>" not in page.text
+
+    script = client.get("/static/js/app.js")
+    assert script.status_code == 200
+    assert "javascript" in script.headers["content-type"]
+    assert "async function upload(file)" in script.text
+
+    stylesheet = client.get("/static/css/styles.css")
+    assert stylesheet.status_code == 200
+    assert "text/css" in stylesheet.headers["content-type"]
+    assert ".shell" in stylesheet.text

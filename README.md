@@ -5,7 +5,7 @@ An extensible FastAPI application for uploading CSV, Excel, JSON and text-based 
 ## Architecture
 
 ```text
-Browser dashboard (frontend/index.html)
+Browser dashboard (frontend/index.html + JS/CSS assets)
         |
         v
 FastAPI (app/main.py) — application wiring only
@@ -36,6 +36,21 @@ The database has three tables:
 This means **the original upload AND the processed data live in the database**, not separate JSON files. Files can be queried, exported and downloaded after server restarts. A single transaction saves each upload and all its parsed records.
 
 > **MVP trade-off:** Keeping a copy of every original binary in the database is workable under the current 10 MB limit. For larger production files, move original bytes to object storage (Azure Blob / S3), keeping object keys, metadata, structured rows and extracted text in PostgreSQL. For large structured datasets, consider bulk loading to dedicated tables or Parquet.
+
+## Frontend structure
+
+The frontend is currently a lightweight, framework-free browser app served by FastAPI:
+
+```text
+frontend/
+├── index.html         # Page markup
+├── js/
+│   └── app.js         # Upload, list, preview, download and API calls
+└── css/
+    └── styles.css     # Dashboard styling
+```
+
+FastAPI mounts `frontend/` at `/static`, so `index.html` loads `/static/js/app.js` and `/static/css/styles.css`. This keeps HTML free of inline scripts and styles. No separate frontend build command is needed.
 
 ## Run locally
 
