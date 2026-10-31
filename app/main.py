@@ -8,7 +8,7 @@ import uuid
 from contextlib import contextmanager
 from pathlib import Path
 
-import fitz
+import pymupdf
 import pandas as pd
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, Response
@@ -59,7 +59,7 @@ def parse(content: bytes, extension: str):
             raise ValueError("JSON input must be an array of objects")
         df = pd.DataFrame(payload)
     else:
-        with fitz.open(stream=content, filetype="pdf") as doc:
+        with pymupdf.open(stream=content, filetype="pdf") as doc:
             text = "\n".join(page.get_text() for page in doc)
         if not text.strip():
             raise ValueError("No embedded text found; scanned PDFs require OCR (Sprint 2)")
