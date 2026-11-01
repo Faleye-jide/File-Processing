@@ -71,16 +71,48 @@ Windows PowerShell: `.venv\Scripts\Activate.ps1`
 
 By default the database is `storage/file_processing.sqlite3` (automatically created). Data in `storage/` is ignored by Git.
 
-### PostgreSQL option
+### PostgreSQL on macOS (pgAdmin or Postgres.app)
 
-Create a PostgreSQL database and set the connection string before running:
+Use the existing PostgreSQL server on your Mac. There is no need to install `psql` or run another server.
 
-```bash
-export DATABASE_URL='postgresql+psycopg://username:password@localhost:5432/file_processing'
-uvicorn app.main:app --reload
-```
+1. In pgAdmin confirm the database `file_processing` exists. Check the actual server port and username:
 
-SQLAlchemy creates tables automatically for this MVP. For real deployments, add Alembic migrations and manage the database credentials securely. **Changing the connection string doesn't automatically copy data from SQLite to PostgreSQL.**
+   ```sql
+   SELECT version(), current_database(), current_user, inet_server_port();
+   ```
+
+2. Set up local config (never commit `.env`):
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` and replace the placeholders, using the port shown by pgAdmin:
+
+   ```dotenv
+   DATABASE_URL=postgresql+psycopg://YOUR_DB_USER:YOUR_DB_PASSWORD@127.0.0.1:5433/file_processing
+   ```
+
+   URL-encode special characters in passwords. `DATABASE_URL` from the shell takes precedence over `.env`.
+
+3. Validate the connection and run the API:
+
+   ```bash
+   pip install -r requirements.txt
+   python -m scripts.check_db
+   python -m uvicorn app.main:app --reload
+   ```
+
+4. Upload a test CSV through http://127.0.0.1:8000 and inspect the **file_processing** database in pgAdmin:
+
+   ```sql
+   SELECT filename, kind, rows_count FROM uploaded_files ORDER BY created_at DESC;
+   SELECT file_id, row_number, data FROM dataset_records LIMIT 10;
+   ```
+
+The PostgreSQL database must already exist and the configured role must have permission to create tables. SQLAlchemy creates missing tables for this MVP, not production schema migrations. When `DATABASE_URL` is omitted, SQLite remains the default. Switching database URLs does **not** migrate old SQLite data automatically.
+
+**Troubleshooting:** If the connection is refused, verify the server and port in Postgres.app; if authentication fails, verify the database role and password. The diagnostic deliberately avoids printing secrets.
 
 ## API
 

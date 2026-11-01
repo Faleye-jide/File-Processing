@@ -20,3 +20,5 @@ alwaysApply: true
 
 - Keep frontend markup in `frontend/index.html`, browser logic in `frontend/js/app.js`, and styles in `frontend/css/styles.css`; avoid inline JS/CSS.
 - When changing frontend asset paths, update FastAPI static file serving and the corresponding API tests.
+
+- Load developer database settings from gitignored `.env` and use `python -m scripts.check_db` for connectivity diagnostics.
