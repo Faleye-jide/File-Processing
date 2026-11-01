@@ -90,7 +90,7 @@ Use the existing PostgreSQL server on your Mac. There is no need to install `psq
    Edit `.env` and replace the placeholders, using the port shown by pgAdmin:
 
    ```dotenv
-   DATABASE_URL=postgresql+psycopg://YOUR_DB_USER:YOUR_DB_PASSWORD@127.0.0.1:5432/file_processing
+   DATABASE_URL=postgresql+psycopg://YOUR_DB_USER:YOUR_DB_PASSWORD@127.0.0.1:5433/file_processing
    ```
 
    URL-encode special characters in passwords. `DATABASE_URL` from the shell takes precedence over `.env`.
