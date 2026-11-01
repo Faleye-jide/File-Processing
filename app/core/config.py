@@ -3,7 +3,12 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+# Respect existing environment variables; load local developer settings from .env.
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+
 DEFAULT_DB_PATH = PROJECT_ROOT / "storage" / "file_processing.sqlite3"
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DEFAULT_DB_PATH}")
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
